@@ -1,0 +1,1745 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zero-Point Lunar | Mission Control</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #050a0e;
+            --panel: #0b151e;
+            --panel-2: #101822;
+            --line: #149bae;
+            --line-dim: #253442;
+            --muted: #91a5b6;
+            --cyan: #00e5ff;
+            --cyan-dim: #53e0d0;
+            --blue: #65a9ff;
+            --amber: #f4bd65;
+            --amber-bright: #ffd700;
+            --red: #ff6b73;
+            --green: #4dff8d;
+            --gold: #b68a2e;
+            --bronze: #8b6914;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(ellipse at 50% -10%, #142638 0%, var(--bg) 55%);
+            color: #e4edf3;
+            font: 16px/1.5 "Rajdhani", "Segoe UI", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        .shell { width: 100%; min-height: 100vh; padding: 0; }
+        .workspace { padding: 12px 16px 18px; }
+
+        /* ============ SHARED HEADER ============ */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            min-height: 64px;
+            padding: 8px 14px;
+            border-bottom: 2px solid var(--line);
+            background: linear-gradient(90deg, #1a303b 0%, #0b151e 100%);
+            position: relative;
+        }
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, var(--cyan), var(--amber), var(--red));
+            opacity: 0.6;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+        }
+        .nasa-wedge {
+            width: 48px; height: 48px;
+            background: #0b3d91;
+            border: 2px solid #c5c5c5;
+            border-radius: 4px;
+            display: grid; place-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .nasa-wedge::after {
+            content: "NASA";
+            color: #c5c5c5;
+            font: 700 11px "Orbitron", sans-serif;
+            letter-spacing: 1px;
+        }
+        .meatball {
+            position: absolute;
+            inset: 6px;
+            border: 1px solid rgba(197,197,197,0.3);
+            border-radius: 3px;
+            background: radial-gradient(circle at 50% 50%, #1a303b, #0b3d91);
+        }
+        .meatball::before {
+            content: "";
+            position: absolute;
+            top: 35%; left: 20%; right: 20%; bottom: 35%;
+            background: linear-gradient(to bottom, #c5c5c5 0%, #c5c5c5 30%, transparent 30%, transparent 70%, #c5c5c5 70%);
+            opacity: 0.9;
+        }
+        .meatball::after {
+            content: "";
+            position: absolute;
+            top: 45%; left: 15%; right: 15%; bottom: 45%;
+            border: 1px solid #c5c5c5;
+            border-radius: 50%;
+        }
+        .mission-title {
+            font: 800 20px "Orbitron", sans-serif;
+            letter-spacing: 2.5px;
+            margin: 0;
+            color: #ffd700;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        .mission-sub {
+            color: #b6c8d1;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-top: 1px;
+        }
+        .header-right {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            min-width: 280px;
+        }
+        .met-block {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 8px 10px;
+            background: rgba(11, 21, 30, 0.8);
+        }
+        .met-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .met-value {
+            font: 700 15px "Share Tech Mono", monospace;
+            color: var(--cyan);
+            letter-spacing: 0.5px;
+        }
+        .comm-status {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .comm-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            padding: 3px 6px;
+        }
+        .comm-name { color: #b6c8d1; }
+        .comm-val { color: var(--cyan); font-family: "Share Tech Mono", monospace; }
+        .status-light {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+        .status-light.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+        /* ============ SCREEN TABS ============ */
+        .workflow-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 10px 0 14px;
+            border-bottom: 1px solid var(--line);
+        }
+        .workflow-tabs button {
+            border: 1px solid transparent;
+            border-bottom: 0;
+            border-radius: 6px 6px 0 0;
+            background: transparent;
+            color: var(--muted);
+            padding: 10px 16px;
+            font: 600 12px "Rajdhani", sans-serif;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .workflow-tabs button[aria-selected="true"] {
+            border-color: var(--cyan);
+            background: #0b2833;
+            color: var(--cyan);
+        }
+        .workflow-tabs button:hover:not([aria-selected="true"]) {
+            color: var(--cyan);
+            border-color: var(--line-dim);
+        }
+
+        /* ============ SCREEN 1: MISSION & LAUNCH OPS ============ */
+        #screen-mission { display: none; }
+        #screen-mission.active { display: block; }
+
+        .mission-container { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-height: calc(100vh - 160px); }
+
+        .mission-top { display: grid; grid-template-columns: 1fr 320px; gap: 10px; }
+
+        /* Orbital Trajectory */
+        .trajectory-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            position: relative;
+            overflow: hidden;
+            min-height: 300px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--line-dim);
+            background: #0a1822;
+        }
+        .panel-title { font: 700 13px "Orbitron", sans-serif; letter-spacing: 1.5px; color: var(--cyan); text-transform: uppercase; }
+        .panel-tag { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+        #trajectory-canvas {
+            width: 100%; height: 270px;
+            display: block;
+            background: radial-gradient(circle at 70% 40%, #0a1822 0%, #040c14 100%);
+        }
+
+        /* Telemetry Gauges */
+        .gauges-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .gauges-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px;
+            flex: 1;
+        }
+        .gauge-card {
+            border: 1px solid var(--line-dim);
+            border-radius: 6px;
+            background: #071018;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .gauge-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .gauge-wrap {
+            position: relative;
+            width: 130px; height: 130px;
+        }
+        .gauge-svg { width: 100%; height: 100%; }
+        .gauge-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font: 700 18px "Share Tech Mono", monospace;
+            color: #e4edf3;
+        }
+        .gauge-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .gauge-needle {
+            transform-origin: 50% 85%;
+            transform: rotate(-60deg);
+            transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        /* Bottom data strip */
+        .mission-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .graphs-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+        .graphs-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px;
+            flex: 1;
+        }
+        .graph-card {
+            border: 1px solid var(--line-dim);
+            border-radius: 6px;
+            background: #071018;
+            padding: 10px;
+        }
+        .graph-title {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        #altitude-canvas, #velocity-canvas {
+            width: 100%; height: 130px;
+            display: block;
+            background: #040c14;
+        }
+
+        .orbit-data {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .orbit-item {
+            text-align: center;
+        }
+        .orbit-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .orbit-value {
+            font: 700 18px "Share Tech Mono", monospace;
+            color: var(--cyan);
+            margin-top: 2px;
+        }
+
+        /* Event Log */
+        .event-log {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .event-list {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: "Share Tech Mono", monospace;
+            font-size: 11px;
+        }
+        .event-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #142638;
+            color: #b6c8d1;
+            display: flex;
+            justify-content: space-between;
+        }
+        .event-time { color: var(--muted); }
+        .event-text { color: var(--cyan); }
+
+        /* ============ SCREEN 2: PATHFINDER ============ */
+        #screen-pathfinder { display: none; }
+        #screen-pathfinder.active { display: block; }
+
+        .pathfinder-container { display: grid; grid-template-columns: 1fr 300px; gap: 10px; min-height: calc(100vh - 160px); }
+
+        .pathfinder-map {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            position: relative;
+            min-height: 400px;
+            overflow: hidden;
+        }
+        #pathfinder-canvas {
+            width: 100%; height: 100%;
+            display: block;
+            background: #020508;
+        }
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .map-label {
+            background: rgba(4, 12, 20, 0.85);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 6px 10px;
+            font: 600 11px "Orbitron", sans-serif;
+            color: var(--cyan);
+            max-width: 200px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+        }
+        .map-label.amber { color: var(--amber); border-color: var(--amber); box-shadow: 0 0 10px rgba(255, 215, 0, 0.15); }
+        .map-label.red { color: var(--red); border-color: var(--red); box-shadow: 0 0 10px rgba(255, 107, 115, 0.15); }
+        .map-label.green { color: var(--green); border-color: var(--green); box-shadow: 0 0 10px rgba(77, 255, 136, 0.15); }
+
+        .nav-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .nav-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .nav-title {
+            font: 700 13px "Orbitron", sans-serif;
+            letter-spacing: 1.5px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--line-dim);
+            padding-bottom: 4px;
+        }
+        .nav-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #142638;
+            font-size: 11px;
+        }
+        .nav-label { color: var(--muted); }
+        .nav-value { color: #e4edf3; font-family: "Share Tech Mono", monospace; }
+        .nav-value.active { color: var(--green); font-weight: 700; }
+        .nav-value.warn { color: var(--amber); }
+
+        /* ============ SCREEN 3: 3D TOPOGRAPHY ============ */
+        #screen-topography { display: none; }
+        #screen-topography.active { display: block; }
+
+        .topo-container { display: grid; grid-template-columns: 1fr 280px; gap: 10px; min-height: calc(100vh - 160px); }
+
+        .topo-view {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            position: relative;
+            min-height: 400px;
+            overflow: hidden;
+        }
+        #topo-canvas {
+            width: 100%; height: 100%;
+            display: block;
+            background: #020508;
+        }
+        .topo-overlay {
+            position: absolute;
+            inset: 0;
+            padding: 12px;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .topo-label {
+            background: rgba(4, 12, 20, 0.8);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 5px 10px;
+            font: 600 10px "Orbitron", sans-serif;
+            color: var(--cyan);
+            max-width: 160px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+        }
+
+        .topo-controls {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .control-title {
+            font: 700 12px "Orbitron", sans-serif;
+            letter-spacing: 1.5px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--line-dim);
+            padding-bottom: 4px;
+        }
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+        }
+        .control-name { color: var(--muted); }
+        .control-value { color: #e4edf3; font-family: "Share Tech Mono", monospace; }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-name { color: var(--muted); font-size: 10px; width: 70px; }
+        input[type="range"] { width: 100%; accent-color: var(--cyan); }
+
+        .slope-analysis {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .slope-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #142638;
+            font-size: 11px;
+        }
+        .slope-name { color: var(--muted); }
+        .slope-value.red { color: var(--red); font-weight: 700; font-family: "Share Tech Mono", monospace; }
+        .slope-value.norm { color: #e4edf3; font-family: "Share Tech Mono", monospace; }
+
+        .layer-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #e4edf3;
+        }
+        .layer-item input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--cyan);
+        }
+        .layer-label { color: var(--muted); }
+        .toggle-on { color: var(--green); font-weight: 700; }
+
+        .slope-legend {
+            margin-top: 10px;
+            padding: 8px;
+            background: #071018;
+            border: 1px solid var(--line-dim);
+            border-radius: 4px;
+        }
+        .legend-title {
+            color: var(--cyan);
+            font: 700 11px "Orbitron", sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+        }
+        .legend-swatch {
+            width: 14px; height: 14px;
+            border-radius: 2px;
+        }
+
+        /* ============ SCREEN 4: AI HABITAT SCANNER ============ */
+        #screen-scanner { display: none; }
+        #screen-scanner.active { display: block; }
+
+        .scanner-top {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1a303b 0%, #0b151e 100%);
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .scan-id {
+            font: 800 14px "Orbitron", sans-serif;
+            letter-spacing: 2px;
+            color: var(--cyan);
+            text-transform: uppercase;
+        }
+        .scan-status {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: "Share Tech Mono", monospace;
+        }
+        .scan-status strong { color: #e4edf3; }
+
+        .scanner-main { display: grid; grid-template-columns: 1fr 1fr 320px; gap: 10px; min-height: calc(100vh - 220px); }
+
+        .ice-classifier {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            display: flex;
+            flex-direction: column;
+        }
+        .classifier-image {
+            width: 100%; height: 180px;
+            background: #020508;
+            border-bottom: 1px solid var(--line-dim);
+            position: relative;
+            overflow: hidden;
+        }
+        .classifier-image img { width: 100%; height: 100%; object-fit: cover; }
+        .classifier-results {
+            padding: 10px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-family: "Share Tech Mono", monospace;
+            font-size: 11px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #142638;
+        }
+        .result-label { color: var(--muted); }
+        .result-val { color: #e4edf3; }
+        .result-val.confident { color: var(--green); font-weight: 700; }
+
+        .crater-view {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            position: relative;
+            min-height: 300px;
+        }
+        #crater-canvas {
+            width: 100%; height: 100%;
+            display: block;
+            background: #020508;
+        }
+        .crater-overlay {
+            position: absolute;
+            inset: 0;
+            padding: 12px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .crater-label {
+            background: rgba(4, 12, 20, 0.85);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 5px 10px;
+            font: 600 10px "Orbitron", sans-serif;
+            color: var(--cyan);
+            max-width: 140px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+        }
+
+        .viability-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            display: flex;
+            flex-direction: column;
+        }
+        .viability-section {
+            padding: 10px;
+            border-bottom: 1px solid var(--line-dim);
+        }
+        .viability-section:last-child { border-bottom: 0; }
+        .section-title {
+            font: 700 12px "Orbitron", sans-serif;
+            letter-spacing: 1.5px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .geo-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 11px;
+            font-family: "Share Tech Mono", monospace;
+        }
+        .geo-name { color: var(--muted); }
+        .geo-value { color: #e4edf3; }
+
+        .thermal-index {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        .thermal-title {
+            font: 700 13px "Orbitron", sans-serif;
+            letter-spacing: 1.5px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .thermal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        #thermal-canvas {
+            width: 100%; height: 140px;
+            display: block;
+            background: #020508;
+        }
+        .thermal-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-family: "Share Tech Mono", monospace;
+            font-size: 11px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+        }
+        .stat-name { color: var(--muted); }
+        .stat-val { color: #e4edf3; }
+
+        /* ============ SCREEN 5: LIVE TELEMETRY ============ */
+        #screen-telemetry { display: none; }
+        #screen-telemetry.active { display: block; }
+
+        .telemetry-hero {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #020508;
+            position: relative;
+            min-height: 450px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lander-scene {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: radial-gradient(circle at 20% 20%, #0a1822 0%, #020508 100%);
+        }
+        .earth-view {
+            position: absolute;
+            top: 30px; left: 40px;
+            width: 140px; height: 140px;
+            background: radial-gradient(circle at 40% 40%, #4da6ff, #0b3d91);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 30px rgba(77, 166, 255, 0.4);
+            overflow: hidden;
+        }
+        .earth-view::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="%23ffffff" stroke-width="1" stroke-opacity="0.3"/></svg>');
+            opacity: 0.5;
+        }
+        .lander {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px; height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .lander-body {
+            width: 120px; height: 80px;
+            background: #d4d4d4;
+            border: 2px solid #888;
+            border-radius: 6px 6px 0 0;
+            position: relative;
+        }
+        .lander-legs {
+            display: flex;
+            justify-content: space-between;
+            width: 160px;
+            margin-top: 10px;
+        }
+        .leg {
+            width: 10px; height: 30px;
+            background: #888;
+            border: 1px solid #555;
+        }
+        .flame {
+            position: absolute;
+            top: 80px;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(to bottom, transparent, #ffaa00, #ff0000);
+            opacity: 0.8;
+            filter: blur(4px);
+            animation: flame-flicker 0.1s infinite alternate;
+        }
+        @keyframes flame-flicker {
+            from { transform: scaleY(1); opacity: 0.8; }
+            to { transform: scaleY(1.3); opacity: 1; }
+        }
+        .dust-cloud {
+            position: absolute;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 300px; height: 80px;
+            background: radial-gradient(circle at 50% 100%, rgba(150,120,80,0.4), transparent);
+            border-radius: 50%;
+            filter: blur(8px);
+        }
+        .altitude-readout {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(4, 12, 20, 0.9);
+            border: 1px solid var(--cyan);
+            border-radius: 4px;
+            padding: 12px 20px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+        }
+        .alt-label {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .alt-value {
+            font: 700 28px "Share Tech Mono", monospace;
+            color: var(--cyan);
+            margin-top: 4px;
+        }
+
+        .telemetry-bottom {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px 20px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: "Share Tech Mono", monospace;
+        }
+        .tele-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .tele-name { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+        .tele-val { color: #e4edf3; font-size: 15px; font-weight: 700; }
+        .tele-val.green { color: var(--green); }
+        .tele-divider {
+            width: 1px;
+            height: 30px;
+            background: var(--line-dim);
+            margin: 0 15px;
+        }
+
+        /* ============ RIGHT SIDEBAR TELEMETRY (for screen 5) ============ */
+        .tele-side-panel {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #040c14;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 200px;
+        }
+        .side-gauge {
+            border: 1px solid var(--line-dim);
+            border-radius: 6px;
+            padding: 8px;
+            background: #071018;
+            text-align: center;
+        }
+        .side-gauge-label {
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .side-gauge-val {
+            font: 700 14px "Share Tech Mono", monospace;
+            color: var(--cyan);
+        }
+
+        /* ============ UTILITIES ============ */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mt-10 { margin-top: 10px; }
+
+        @media (max-width: 900px) {
+            .mission-top, .pathfinder-container, .topo-container, .scanner-main {
+                grid-template-columns: 1fr;
+            }
+            .workflow-tabs { flex-direction: column; align-items: stretch; }
+            .workflow-tabs button { border-radius: 4px; border-bottom: 1px solid var(--line-dim); text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="workspace">
+            <header>
+                <div class="brand">
+                    <div class="nasa-wedge">
+                        <div class="meatball"></div>
+                    </div>
+                    <div>
+                        <div class="mission-title" id="page-title">ARTEMISITE // MISSION & LAUNCH OPS</div>
+                        <div class="mission-sub" id="page-sub">ARCTURUS II // LUNAR INSERTION & DESCENT</div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="met-block">
+                        <div class="met-label">Mission Elapsed Time</div>
+                        <div class="met-value" id="met-clock">04d 14h 57m 23s</div>
+                    </div>
+                    <div class="comm-status">
+                        <div class="comm-row"><span class="comm-name">Comms:</span> <span class="comm-val">STABLE</span> <span class="status-light"></span></div>
+                        <div class="comm-row"><span class="comm-name">Guidance:</span> <span class="comm-val">ACTIVE</span> <span class="status-light"></span></div>
+                        <div class="comm-row"><span class="comm-name">Propulsion:</span> <span class="comm-val">ON</span> <span class="status-light"></span></div>
+                        <div class="comm-row"><span class="comm-name">Systems:</span> <span class="comm-val">GO</span> <span class="status-light"></span></div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="workflow-tabs">
+                <button onclick="switchScreen('mission')" aria-selected="true">Mission & Launch Ops</button>
+                <button onclick="switchScreen('pathfinder')">Solar-to-Ice Pathfinder</button>
+                <button onclick="switchScreen('topography')">3D Topography Inspector</button>
+                <button onclick="switchScreen('scanner')">AI Habitat Scanner</button>
+                <button onclick="switchScreen('telemetry')">Live Telemetry</button>
+            </div>
+
+            <!-- SCREEN 1: MISSION & LAUNCH OPS -->
+            <div id="screen-mission" class="mission-container active">
+                <div class="mission-top">
+                    <div class="trajectory-panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Orbital Trajectory Arc</span>
+                            <span class="panel-tag">Lunar Insertion</span>
+                        </div>
+                        <canvas id="trajectory-canvas"></canvas>
+                    </div>
+                    <div class="gauges-panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Flight Director Telemetry Gauges</span>
+                            <span class="panel-tag">Live Readings</span>
+                        </div>
+                        <div class="gauges-grid">
+                            <div class="gauge-card">
+                                <div class="gauge-label">Thrust</div>
+                                <div class="gauge-wrap">
+                                    <svg class="gauge-svg" viewBox="0 0 130 130">
+                                        <path d="M 65 112 A 47 47 0 0 1 18 65 A 47 47 0 0 1 65 18" fill="none" stroke="#1a2e3a" stroke-width="10" stroke-linecap="round"/>
+                                        <path id="gauge-thrust-arc" d="M 65 112 A 47 47 0 0 1 18 65" fill="none" stroke="#00e5ff" stroke-width="8" stroke-linecap="round"/>
+                                        <path class="gauge-needle" d="M 65 65 L 65 20" stroke="#00e5ff" stroke-width="2"/>
+                                    </svg>
+                                    <div class="gauge-value">
+                                        <div id="gauge-thrust-val">85</div>
+                                        <div class="gauge-unit">%</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:6px; color:#b6c8d1; font-size:10px; font-family:'Share Tech Mono',monospace;">85%</div>
+                            </div>
+                            <div class="gauge-card">
+                                <div class="gauge-label">Fuel</div>
+                                <div class="gauge-wrap">
+                                    <svg class="gauge-svg" viewBox="0 0 130 130">
+                                        <path d="M 65 112 A 47 47 0 0 1 18 65 A 47 47 0 0 1 65 18" fill="none" stroke="#1a2e3a" stroke-width="10" stroke-linecap="round"/>
+                                        <path id="gauge-fuel-arc" d="M 65 112 A 47 47 0 0 1 18 65" fill="none" stroke="#f4bd65" stroke-width="8" stroke-linecap="round"/>
+                                        <path class="gauge-needle" d="M 65 65 L 65 20" stroke="#f4bd65" stroke-width="2"/>
+                                    </svg>
+                                    <div class="gauge-value">
+                                        <div id="gauge-fuel-val">62</div>
+                                        <div class="gauge-unit">%</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:6px; color:#b6c8d1; font-size:10px; font-family:'Share Tech Mono',monospace;">62%</div>
+                            </div>
+                            <div class="gauge-card">
+                                <div class="gauge-label">Power</div>
+                                <div class="gauge-wrap">
+                                    <svg class="gauge-svg" viewBox="0 0 130 130">
+                                        <path d="M 65 112 A 47 47 0 0 1 18 65 A 47 47 0 0 1 65 18" fill="none" stroke="#1a2e3a" stroke-width="10" stroke-linecap="round"/>
+                                        <path id="gauge-power-arc" d="M 65 112 A 47 47 0 0 1 18 65" fill="none" stroke="#4dff8d" stroke-width="8" stroke-linecap="round"/>
+                                        <path class="gauge-needle" d="M 65 65 L 65 20" stroke="#4dff8d" stroke-width="2"/>
+                                    </svg>
+                                    <div class="gauge-value">
+                                        <div id="gauge-power-val">94</div>
+                                        <div class="gauge-unit">%</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:6px; color:#b6c8d1; font-size:10px; font-family:'Share Tech Mono',monospace;">94%</div>
+                            </div>
+                            <div class="gauge-card">
+                                <div class="gauge-label">Nominal Life Support</div>
+                                <div class="gauge-wrap">
+                                    <svg class="gauge-svg" viewBox="0 0 130 130">
+                                        <path d="M 65 112 A 47 47 0 0 1 18 65 A 47 47 0 0 1 65 18" fill="none" stroke="#1a2e3a" stroke-width="10" stroke-linecap="round"/>
+                                        <path id="gauge-life-arc" d="M 65 112 A 47 47 0 0 1 18 65" fill="none" stroke="#00e5ff" stroke-width="8" stroke-linecap="round"/>
+                                        <path class="gauge-needle" d="M 65 65 L 65 20" stroke="#00e5ff" stroke-width="2"/>
+                                    </svg>
+                                    <div class="gauge-value">
+                                        <div id="gauge-life-val">NOM</div>
+                                        <div class="gauge-unit">OK</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:6px; color:#b6c8d1; font-size:10px; font-family:'Share Tech Mono',monospace;">NOMINAL</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mission-bottom">
+                    <div class="graphs-panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Altitude & Velocity Graphs</span>
+                            <span class="panel-tag">Telemetry</span>
+                        </div>
+                        <div class="graphs-grid">
+                            <div class="graph-card">
+                                <div class="graph-title">Altitude</div>
+                                <canvas id="altitude-canvas"></canvas>
+                            </div>
+                            <div class="graph-card">
+                                <div class="graph-title">Velocity</div>
+                                <canvas id="velocity-canvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="orbit-data">
+                        <div class="orbit-item">
+                            <div class="orbit-label">Periapsis</div>
+                            <div class="orbit-value" id="orbit-periapsis">12.1 km</div>
+                        </div>
+                        <div class="orbit-item">
+                            <div class="orbit-label">Apoapsis</div>
+                            <div class="orbit-value" id="orbit-apoapsis">75.4 km</div>
+                        </div>
+                        <div class="orbit-item">
+                            <div class="orbit-label">Inclination</div>
+                            <div class="orbit-value" id="orbit-inclination">89.9°</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="event-log">
+                    <div class="panel-header">
+                        <span class="panel-title">Event Log</span>
+                        <span class="panel-tag">Mission Timeline</span>
+                    </div>
+                    <div class="event-list">
+                        <div class="event-entry"><span class="event-time">T+04d 14h</span> <span class="event-text">Shackleton Crater Lunar South Pole</span></div>
+                        <div class="event-entry"><span class="event-time">T+04d 13h</span> <span class="event-text">Lunar South Pole</span></div>
+                        <div class="event-entry"><span class="event-time">T+04d 12h</span> <span class="event-text">Reception Mention</span></div>
+                        <div class="event-entry"><span class="event-time">T+04d 11h</span> <span class="event-text">Raming South Pole</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 2: PATHFINDER -->
+            <div id="screen-pathfinder" class="pathfinder-container">
+                <div style="border:1px solid var(--line); border-radius:4px; background:#040c14; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font:700 14px 'Orbitron',sans-serif; letter-spacing:2px; color:var(--cyan); text-transform:uppercase;">Solar-to-Ice Proximity Pathfinder</div>
+                    <div style="font-family:'Share Tech Mono',monospace; font-size:11px; color:#b6c8d1;">Mission Status: <span style="color:var(--green)">ACTIVE</span></div>
+                </div>
+                <div class="pathfinder-map">
+                    <canvas id="pathfinder-canvas"></canvas>
+                    <div class="map-overlay">
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div class="map-label green" style="left:12px; top:12px;">Start Point A<br><span style="font-size:10px; color:#b6c8d1;">Rim Habitat</span></div>
+                            <div class="map-label red" style="right:12px; top:12px;">End Point B<br><span style="font-size:10px; color:#b6c8d1;">Drill Site</span></div>
+                            <div class="map-label" style="left:50%; top:12px; transform:translateX(-50%);">Shackleton Crater<br><span style="font-size:10px; color:#b6c8d1;">Diameter 21km</span></div>
+                        </div>
+                        <div class="map-label green" style="right:12px; bottom:12px;">Optimized Traverse Path</div>
+                    </div>
+                </div>
+                <div class="nav-panel">
+                    <div class="nav-section">
+                        <div class="nav-title">Navigation Panel</div>
+                        <div class="nav-item"><span class="nav-label">Target B</span> <span class="nav-value">Lunar Rover-1</span></div>
+                        <div class="nav-item"><span class="nav-label">Dist to Go:</span> <span class="nav-value">21. km</span></div>
+                        <div class="nav-item"><span class="nav-label">ETA:</span> <span class="nav-value">45m</span></div>
+                        <div class="nav-item"><span class="nav-label">Mode:</span> <span class="nav-value active">Pathfinding Active</span></div>
+                    </div>
+                    <div class="nav-section">
+                        <div class="nav-title">Hazard Status</div>
+                        <div class="nav-item"><span class="nav-label">Hazardous Terrain Avoided:</span> <span class="nav-value">14 Polygons</span></div>
+                        <div class="nav-item"><span class="nav-label">Slope Limit:</span> <span class="nav-value warn">&gt; 28°</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 3: 3D TOPOGRAPHY -->
+            <div id="screen-topography" class="topo-container">
+                <div style="border:1px solid var(--line); border-radius:4px; background:#040c14; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font:700 14px 'Orbitron',sans-serif; letter-spacing:2px; color:var(--cyan); text-transform:uppercase;">3D Topography & Slope Inspector</div>
+                    <div style="font-family:'Share Tech Mono',monospace; font-size:11px; color:#b6c8d1;">System: <span style="color:var(--green)">OK</span> &nbsp;|&nbsp; UTC: 2024-10-27 14:32:11 &nbsp;|&nbsp; User: C. CHEN</div>
+                </div>
+                <div class="topo-view">
+                    <canvas id="topo-canvas"></canvas>
+                    <div class="topo-overlay">
+                        <div class="topo-label" style="left:12px; top:12px;">89.5°S</div>
+                        <div class="topo-label" style="right:12px; top:12px;">Rim Summit<br><span style="font-size:10px; color:#b6c8d1;">89.5°S</span></div>
+                        <div class="topo-label" style="left:50%; top:12px; transform:translateX(-50%);">Inner Slope</div>
+                        <div class="topo-label" style="right:12px; bottom:12px;">142.0°E</div>
+                        <div class="topo-label" style="left:12px; bottom:12px;">Outer Flank</div>
+                    </div>
+                </div>
+                <div class="topo-controls">
+                    <div class="control-group">
+                        <div class="control-title">Navigation Controls</div>
+                        <div class="control-row">
+                            <div class="slider-row">
+                                <span class="slider-name">Azimuth</span>
+                                <input type="range" min="0" max="360" value="268">
+                            </div>
+                            <span class="control-value">268.4°</span>
+                        </div>
+                        <div class="control-row">
+                            <div class="slider-row">
+                                <span class="slider-name">Elevation</span>
+                                <input type="range" min="0" max="90" value="14">
+                            </div>
+                            <span class="control-value">14.2°</span>
+                        </div>
+                        <div class="control-row">
+                            <div class="slider-row">
+                                <span class="slider-name">Zoom</span>
+                                <input type="range" min="1" max="10" value="3">
+                            </div>
+                            <span class="control-value">3.2x</span>
+                        </div>
+                        <div class="control-row" style="margin-top:8px;">
+                            <span class="control-name">Camera Vector:</span>
+                            <span class="control-value">265°</span>
+                        </div>
+                        <div class="control-row">
+                            <span class="control-name">Sun Azimuth:</span>
+                            <span class="control-value">235°</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-title">Slope Analysis</div>
+                        <div class="slope-analysis">
+                            <div class="slope-row"><span class="slope-name">Max Slope:</span> <span class="slope-value red">38.7° (Red)</span></div>
+                            <div class="slope-row"><span class="slope-name">Avg Slope:</span> <span class="slope-value norm">18.2°</span></div>
+                            <div class="slope-row"><span class="slope-name">Area:</span> <span class="slope-value norm">4.1 sq km</span></div>
+                            <div class="slope-row"><span class="slope-name">Crater Depth:</span> <span class="slope-value norm">1.2 km</span></div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-title">Layer Settings</div>
+                        <div class="layer-settings">
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Wireframe</span> <span class="toggle-on">ON</span></div>
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Shaded Relief</span> <span class="toggle-on">ON</span></div>
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Slope Heatmap</span> <span class="toggle-on">ON</span></div>
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Sun Shadows</span> <span class="toggle-on">ON</span></div>
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Grid</span> <span class="toggle-on">ON</span></div>
+                            <div class="layer-item"><input type="checkbox" checked><span class="layer-label">Annotations</span> <span class="toggle-on">ON</span></div>
+                        </div>
+                    </div>
+                    <div class="slope-legend">
+                        <div class="legend-title">Slope Angle</div>
+                        <div class="legend-grid">
+                            <div class="legend-item"><div class="legend-swatch" style="background:#00ffff;"></div><span>0°-5°</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:#00ff00;"></div><span>5°-15°</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:#ffff00;"></div><span>15°-25°</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:#ff965e;"></div><span>25°-35°</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:#ff0000;"></div><span>&gt;35°</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 4: AI HABITAT SCANNER -->
+            <div id="screen-scanner" class="scanner-container">
+                <div class="scanner-top">
+                    <div class="scan-id">AI Habitat Viability Scanner</div>
+                    <div class="scan-status">
+                        <span>Viability Status: <strong>ACTIVE</strong></span>
+                        <span>Mission: <strong>Lunar Base Alpha (LBA)</strong></span>
+                        <span>Scan Cycle: <strong>384</strong></span>
+                        <span>Time: <strong id="scanner-time">14:48:21 UTC</strong></span>
+                    </div>
+                </div>
+                <div class="scanner-main">
+                    <div class="ice-classifier">
+                        <div class="panel-header">
+                            <span class="panel-title">Surface & Ice Classifier</span>
+                            <span class="panel-tag">AI Model: SLC v2.1</span>
+                        </div>
+                        <div class="classifier-image">
+                            <canvas id="ice-canvas" style="width:100%;height:100%;"></canvas>
+                        </div>
+                        <div class="classifier-results">
+                            <div class="result-item"><span class="result-label">Total Ice Area</span> <span class="result-val">14.2 sq km</span></div>
+                            <div class="result-item"><span class="result-label">Mean Purity</span> <span class="result-val confident">78.4%</span></div>
+                        </div>
+                        <div style="padding:8px 10px; border-top:1px solid var(--line-dim); font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted);">
+                            Water Ice 89% Confident<br>Regolith 94% Confident<br>Metal Oxides 62%<br>Volatiles 78%
+                        </div>
+                    </div>
+                    <div class="crater-view">
+                        <div class="panel-header" style="position:absolute; top:0; left:0; right:0;">
+                            <span class="panel-title">Crater Rim Geolocation</span>
+                            <span class="panel-tag">Lidar Scan</span>
+                        </div>
+                        <canvas id="crater-canvas"></canvas>
+                        <div class="crater-overlay">
+                            <div class="crater-label" style="left:12px; top:12px;">Ridge 8</div>
+                            <div class="crater-label" style="right:12px; top:12px;">Ridge 8</div>
+                            <div class="crater-label" style="left:50%; top:12px; transform:translateX(-50%);">Crater 7A</div>
+                        </div>
+                    </div>
+                    <div class="viability-panel">
+                        <div class="viability-section">
+                            <div class="section-title">Crater Rim Geolocation</div>
+                            <div class="geo-item"><span class="geo-name">Lat:</span> <span class="geo-value">-99.44</span></div>
+                            <div class="geo-item"><span class="geo-name">Lon:</span> <span class="geo-value">0.05</span></div>
+                            <div class="geo-item"><span class="geo-name">AI Model:</span> <span class="geo-value">C.R.G. v1.7</span></div>
+                        </div>
+                        <div class="viability-section">
+                            <div class="section-title">Network</div>
+                            <canvas id="network-canvas" style="width:100%;height:100px;background:#020508;"></canvas>
+                        </div>
+                        <div class="viability-section">
+                            <div class="section-title">Thermal Survival Index</div>
+                            <div class="geo-item"><span class="geo-name">Confidence:</span> <span class="geo-value">93%</span></div>
+                            <div class="geo-item"><span class="geo-name">Locational Accuracy:</span> <span class="geo-value">97%</span></div>
+                            <div class="geo-item"><span class="geo-name">Rim Stability:</span> <span class="geo-value">90%</span></div>
+                            <div class="geo-item"><span class="geo-name">Skyline View:</span> <span class="geo-value">94%</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="thermal-index">
+                    <div class="thermal-title">Thermal Survival Index · AI Model: TSL v3.0</div>
+                    <div class="thermal-grid">
+                        <div>
+                            <canvas id="thermal-canvas"></canvas>
+                        </div>
+                        <div class="thermal-stats">
+                            <div class="stat-row"><span class="stat-name">TSR:</span> <span class="stat-val">0.89</span></div>
+                            <div class="stat-row"><span class="stat-name">Insulation Factor:</span> <span class="stat-val">0.94</span></div>
+                            <div class="stat-row"><span class="stat-name">Rim Elevation:</span> <span class="stat-val">214m</span></div>
+                            <div class="stat-row"><span class="stat-name">Slope Avg:</span> <span class="stat-val">22°</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 5: LIVE TELEMETRY -->
+            <div id="screen-telemetry" class="telemetry-container">
+                <div style="border:1px solid var(--line); border-radius:4px; background:#040c14; padding:8px 14px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="display:inline-block; width:8px; height:8px; background:var(--green); border-radius:50%; box-shadow:0 0 8px var(--green);"></span>
+                        <span style="font:700 14px 'Orbitron',sans-serif; letter-spacing:2px; color:var(--cyan); text-transform:uppercase;">Live Telemetry</span>
+                    </div>
+                    <div style="font-family:'Share Tech Mono',monospace; font-size:11px; color:#b6c8d1;">Mission: <strong>Shackleton Ridge</strong></div>
+                </div>
+                <div class="telemetry-hero">
+                    <div class="lander-scene">
+                        <div class="earth-view"></div>
+                        <div class="lander">
+                            <div class="lander-body"></div>
+                            <div class="lander-legs">
+                                <div class="leg"></div><div class="leg"></div><div class="leg"></div><div class="leg"></div>
+                            </div>
+                        </div>
+                        <div class="flame"></div>
+                        <div class="dust-cloud"></div>
+                        <div class="altitude-readout">
+                            <div class="alt-label">Altitude</div>
+                            <div class="alt-value" id="lander-altitude">24.7 m</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="telemetry-bottom">
+                    <div class="tele-item">
+                        <div class="tele-name">Water Extracted</div>
+                        <div class="tele-val green">128.7 L</div>
+                    </div>
+                    <div class="tele-divider"></div>
+                    <div class="tele-item">
+                        <div class="tele-name">Cargo Ready</div>
+                        <div class="tele-val green">100%</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <div class="tele-side-panel" style="flex:1;">
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">O2 Pressure</div>
+                            <div class="side-gauge-val">98.4 kPa</div>
+                        </div>
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">Cabin Temp</div>
+                            <div class="side-gauge-val">22.1°C</div>
+                        </div>
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">Power</div>
+                            <div class="side-gauge-val">94%</div>
+                        </div>
+                    </div>
+                    <div class="tele-side-panel" style="flex:1;">
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">Fuel Rate</div>
+                            <div class="side-gauge-val">1.8 kg/s</div>
+                        </div>
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">Comm Link</div>
+                            <div class="side-gauge-val">Strong</div>
+                        </div>
+                        <div class="side-gauge">
+                            <div class="side-gauge-label">System</div>
+                            <div class="side-gauge-val">Nominal</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchScreen(screen) {
+            document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.workflow-tabs button').forEach(btn => btn.setAttribute('aria-selected', 'false'));
+            document.getElementById('screen-' + screen).classList.add('active');
+            event.target.setAttribute('aria-selected', 'true');
+        }
+
+        // MET Clock
+        function updateMET() {
+            const now = new Date();
+            // Simulated MET: 4 days 14 hours 57 minutes plus seconds
+            const baseSeconds = 4*86400 + 14*3600 + 57*60;
+            const elapsed = baseSeconds + Math.floor(now.getTime() / 1000) % 86400;
+            const d = Math.floor(elapsed / 86400);
+            const h = Math.floor((elapsed % 86400) / 3600);
+            const m = Math.floor((elapsed % 3600) / 60);
+            const s = elapsed % 60;
+            document.getElementById('met-clock').textContent =
+                d.toString().padStart(2,'0') + 'd ' +
+                h.toString().padStart(2,'0') + 'h ' +
+                m.toString().padStart(2,'0') + 'm ' +
+                s.toString().padStart(2,'0') + 's';
+        }
+        setInterval(updateMET, 1000);
+        updateMET();
+
+        // Scanner time
+        function updateScannerTime() {
+            const now = new Date();
+            document.getElementById('scanner-time').textContent =
+                now.getUTCHours().toString().padStart(2,'0') + ':' +
+                now.getUTCMinutes().toString().padStart(2,'0') + ':' +
+                now.getUTCSeconds().toString().padStart(2,'0') + ' UTC';
+        }
+        setInterval(updateScannerTime, 1000);
+        updateScannerTime();
+
+        // Canvas drawings
+        function drawTrajectory() {
+            const c = document.getElementById('trajectory-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 700;
+            c.height = c.offsetHeight || 270;
+            const w = c.width, h = c.height;
+            
+            // Background gradient
+            const grad = ctx.createRadialGradient(w*0.7, h*0.3, 0, w*0.7, h*0.3, w);
+            grad.addColorStop(0, '#0a1822');
+            grad.addColorStop(1, '#040c14');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+            
+            // Moon
+            ctx.save();
+            ctx.translate(w*0.75, h*0.55);
+            const moonR = Math.min(w, h) * 0.28;
+            const moonGrad = ctx.createRadialGradient(-moonR*0.3, -moonR*0.3, 0, 0, 0, moonR);
+            moonGrad.addColorStop(0, '#6b6b6b');
+            moonGrad.addColorStop(1, '#4a4a4a');
+            ctx.fillStyle = moonGrad;
+            ctx.beginPath(); ctx.arc(0, 0, moonR, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+            
+            // Trajectory arc (Orion path)
+            ctx.beginPath();
+            ctx.moveTo(w*0.08, h*0.55);
+            ctx.bezierCurveTo(w*0.08, h*0.2, w*0.5, h*0.1, w*0.55, h*0.3);
+            ctx.bezierCurveTo(w*0.6, h*0.45, w*0.75, h*0.65, w*0.7, h*0.75);
+            ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 4; ctx.stroke();
+            
+            // Gradient sections of arc
+            ctx.beginPath();
+            ctx.moveTo(w*0.55, h*0.3);
+            ctx.bezierCurveTo(w*0.6, h*0.45, w*0.75, h*0.65, w*0.7, h*0.75);
+            ctx.strokeStyle = '#f4bd65'; ctx.lineWidth = 5; ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(w*0.65, h*0.5);
+            ctx.bezierCurveTo(w*0.72, h*0.62, w*0.76, h*0.7, w*0.7, h*0.75);
+            ctx.strokeStyle = '#ff6b73'; ctx.lineWidth = 5; ctx.stroke();
+            
+            // Orion spacecraft
+            ctx.save();
+            ctx.translate(w*0.55, h*0.3);
+            ctx.rotate(-0.3);
+            ctx.fillStyle = '#e0e0e0';
+            ctx.fillRect(-8, -4, 16, 8);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillRect(-6, -2, 12, 4);
+            ctx.restore();
+            
+            // NHRO Gateway
+            ctx.save();
+            ctx.translate(w*0.13, h*0.52);
+            ctx.fillStyle = '#b6c8d1';
+            ctx.fillRect(-6, -10, 12, 20);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fillRect(-4, -8, 8, 16);
+            ctx.restore();
+            
+            // Target crater
+            ctx.save();
+            ctx.translate(w*0.7, h*0.75);
+            ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI*2); ctx.stroke();
+            ctx.fillStyle = '#ff6b73'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            
+            // Labels
+            ctx.fillStyle = '#b6c8d1'; ctx.font = '11px Rajdhani';
+            ctx.fillText('ORION', w*0.56, h*0.28);
+            ctx.fillStyle = '#00e5ff'; ctx.font = '700 11px Orbitron';
+            ctx.fillText('ALTITUDE: 15.2 km', w*0.56, h*0.33);
+            ctx.fillText('VELOCITY: 1.8 km/s', w*0.56, h*0.38);
+            
+            ctx.fillStyle = '#b6c8d1'; ctx.font = '11px Rajdhani';
+            ctx.fillText('NHRO GATEWAY', w*0.16, h*0.52);
+            
+            ctx.fillStyle = '#ffd700'; ctx.font = '700 11px Orbitron';
+            ctx.fillText('TARGET: SHACKLETON CRATER', w*0.58, h*0.72);
+            ctx.fillStyle = '#b6c8d1'; ctx.font = '11px Rajdhani';
+            ctx.fillText('SHACKLETON CRATER', w*0.58, h*0.78);
+            ctx.fillText('LUNAR SOUTH POLE', w*0.62, h*0.83);
+        }
+
+        function drawGauge(id, pct, color) {
+            const c = document.getElementById(id);
+            const ctx = c.getContext('2d');
+            const w = c.width, h = c.height;
+            const cx = w/2, cy = h/2, r = 42;
+            const startAngle = -Math.PI * 0.85;
+            const endAngle = startAngle + (pct/100) * (Math.PI * 1.7);
+            
+            ctx.clearRect(0, 0, w, h);
+            // Background arc
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAngle, startAngle + Math.PI * 1.7);
+            ctx.strokeStyle = '#1a2e3a'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+            // Value arc
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAngle, endAngle);
+            ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+            // Needle
+            const needleAngle = startAngle + (pct/100) * (Math.PI * 1.7);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(needleAngle) * (r-8), cy + Math.sin(needleAngle) * (r-8));
+            ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+        }
+
+        function drawGraph(id, color, label) {
+            const c = document.getElementById(id);
+            const ctx = c.getContext('2d');
+            const w = c.width, h = c.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            // Grid
+            ctx.strokeStyle = '#1a2e3a'; ctx.lineWidth = 1;
+            for(let i=0; i<=5; i++) {
+                const y = h - (i/5) * h;
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+            
+            // Data line
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            for(let x=0; x<=w; x+=20) {
+                const y = h - Math.sin(x * 0.02) * (h*0.4) - (x/w) * (h*0.5);
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+            
+            // Fill
+            ctx.lineTo(w, h); ctx.lineTo(0, h);
+            ctx.fillStyle = color + '22'; ctx.fill();
+            
+            // Label
+            ctx.fillStyle = '#b6c8d1'; ctx.font = '10px Rajdhani';
+            ctx.fillText(label, 8, h - 8);
+        }
+
+        function drawPathfinder() {
+            const c = document.getElementById('pathfinder-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 700;
+            c.height = c.offsetHeight || 400;
+            const w = c.width, h = c.height;
+            
+            ctx.fillStyle = '#020508'; ctx.fillRect(0, 0, w, h);
+            
+            // Crater rim
+            ctx.beginPath();
+            ctx.arc(w*0.5, h*0.5, Math.min(w,h)*0.35, 0, Math.PI*2);
+            ctx.strokeStyle = '#4a4a4a'; ctx.lineWidth = 3; ctx.stroke();
+            
+            // Hazards (red polygons)
+            ctx.fillStyle = 'rgba(255, 107, 115, 0.3)';
+            ctx.strokeStyle = '#ff6b73'; ctx.lineWidth = 2;
+            for(let i=0; i<8; i++) {
+                const angle = (i/8) * Math.PI * 2;
+                const cx = w*0.5 + Math.cos(angle) * Math.min(w,h)*0.22;
+                const cy = h*0.5 + Math.sin(angle) * Math.min(w,h)*0.22;
+                ctx.beginPath();
+                for(let j=0; j<6; j++) {
+                    const a2 = angle + (j/6) * Math.PI * 1.5;
+                    const r = 25 + Math.sin(j) * 15;
+                    ctx.lineTo(cx + Math.cos(a2)*r, cy + Math.sin(a2)*r);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            }
+            
+            // Sunlit zones (gold)
+            ctx.fillStyle = 'rgba(182, 138, 46, 0.25)';
+            ctx.strokeStyle = '#f4bd65'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(w*0.2, h*0.25, Math.min(w,h)*0.18, 0, Math.PI*2);
+            ctx.fill(); ctx.stroke();
+            
+            // Traverse path (green)
+            ctx.beginPath();
+            ctx.moveTo(w*0.28, h*0.3);
+            ctx.bezierCurveTo(w*0.45, h*0.25, w*0.6, h*0.4, w*0.72, h*0.5);
+            ctx.strokeStyle = '#4dff8d'; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.stroke();
+            
+            // Start point
+            ctx.fillStyle = '#4dff8d'; ctx.beginPath(); ctx.arc(w*0.28, h*0.3, 6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+            
+            // End point
+            ctx.fillStyle = '#4dff8d'; ctx.beginPath(); ctx.arc(w*0.72, h*0.5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        function drawTopo() {
+            const c = document.getElementById('topo-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 700;
+            c.height = c.offsetHeight || 400;
+            const w = c.width, h = c.height;
+            
+            ctx.fillStyle = '#020508'; ctx.fillRect(0, 0, w, h);
+            
+            // Grid
+            ctx.strokeStyle = '#1a2e3a'; ctx.lineWidth = 1;
+            const gs = 40;
+            for(let x=0; x<w; x+=gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+            
+            // Crater shape
+            ctx.save();
+            ctx.translate(w*0.5, h*0.5);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w*0.35, h*0.3, 0, 0, Math.PI*2);
+            ctx.strokeStyle = '#556677'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = 'rgba(85, 102, 119, 0.15)'; ctx.fill();
+            
+            // Inner slope shading
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w*0.2, h*0.18, 0, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(10, 20, 30, 0.6)'; ctx.fill();
+            ctx.restore();
+        }
+
+        function drawCrater() {
+            const c = document.getElementById('crater-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 400;
+            c.height = c.offsetHeight || 300;
+            const w = c.width, h = c.height;
+            
+            ctx.fillStyle = '#020508'; ctx.fillRect(0, 0, w, h);
+            
+            // Crater grid
+            ctx.strokeStyle = '#1a2e3a'; ctx.lineWidth = 1;
+            const gs = 30;
+            for(let x=0; x<w; x+=gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+            
+            // Crater
+            ctx.beginPath();
+            ctx.ellipse(w*0.5, h*0.5, w*0.4, h*0.35, 0, 0, Math.PI*2);
+            ctx.strokeStyle = '#3a5566'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = 'rgba(58, 85, 102, 0.2)'; ctx.fill();
+        }
+
+        function drawIce() {
+            const c = document.getElementById('ice-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 400;
+            c.height = c.offsetHeight || 180;
+            const w = c.width, h = c.height;
+            
+            // Thermal gradient background
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, '#0a0a1a');
+            grad.addColorStop(0.3, '#1a0a2a');
+            grad.addColorStop(0.5, '#2a1a3a');
+            grad.addColorStop(0.7, '#1a2a3a');
+            grad.addColorStop(1, '#0a1a2a');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+            
+            // Ice patterns (yellow/red hot zones)
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+            ctx.beginPath(); ctx.arc(w*0.35, h*0.45, 40, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 107, 115, 0.5)';
+            ctx.beginPath(); ctx.arc(w*0.65, h*0.35, 30, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath(); ctx.arc(w*0.5, h*0.5, 20, 0, Math.PI*2); ctx.fill();
+        }
+
+        function drawThermal() {
+            const c = document.getElementById('thermal-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 400;
+            c.height = c.offsetHeight || 140;
+            const w = c.width, h = c.height;
+            
+            ctx.fillStyle = '#020508'; ctx.fillRect(0, 0, w, h);
+            
+            // Temperature line
+            ctx.beginPath();
+            ctx.moveTo(0, h/2);
+            for(let x=0; x<=w; x+=15) {
+                const y = h/2 + Math.sin(x*0.03) * (h*0.3) + Math.cos(x*0.05) * (h*0.2);
+                ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#ff6b73'; ctx.lineWidth = 2; ctx.stroke();
+            
+            ctx.fillStyle = '#b6c8d1'; ctx.font = '10px Rajdhani';
+            ctx.fillText('Crater 7A Temp (Kelvin)', 8, h-8);
+        }
+
+        function drawNetwork() {
+            const c = document.getElementById('network-canvas');
+            const ctx = c.getContext('2d');
+            c.width = c.offsetWidth || 300;
+            c.height = c.offsetHeight || 100;
+            const w = c.width, h = c.height;
+            
+            ctx.fillStyle = '#020508'; ctx.fillRect(0, 0, w, h);
+            
+            // Network nodes and edges
+            ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1;
+            ctx.fillStyle = '#ffffff';
+            const nodes = [];
+            for(let i=0; i<12; i++) {
+                nodes.push({x: Math.random()*w, y: Math.random()*h});
+            }
+            for(let i=0; i<nodes.length; i++) {
+                for(let j=i+1; j<nodes.length; j++) {
+                    const d = Math.hypot(nodes[i].x-nodes[j].x, nodes[i].y-nodes[j].y);
+                    if(d < 100) {
+                        ctx.beginPath(); ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y); ctx.stroke();
+                    }
+                }
+            }
+            nodes.forEach(n => {
+                ctx.beginPath(); ctx.arc(n.x, n.y, 3, 0, Math.PI*2); ctx.fill();
+            });
+        }
+
+        function resizeCanvases() {
+            drawTrajectory();
+            drawPathfinder();
+            drawTopo();
+            drawCrater();
+            drawIce();
+            drawThermal();
+            drawNetwork();
+        }
+        
+        // Gauge animations
+        function animateGauges() {
+            drawGauge('gauge-thrust-canvas', 85, '#00e5ff');
+            drawGauge('gauge-fuel-canvas', 62, '#f4bd65');
+            drawGauge('gauge-power-canvas', 94, '#4dff8d');
+        }
+        
+        window.addEventListener('resize', resizeCanvases);
+        setTimeout(resizeCanvases, 100);
+        setInterval(resizeCanvases, 2000);
+    </script>
+</body>
+</html>

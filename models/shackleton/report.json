@@ -1,0 +1,84 @@
+{
+  "source": "NASA LOLA LDEM 16, NASA Scientific Visualization Studio lunar elevation.",
+  "center": {
+    "name": "Shackleton rim",
+    "lat": -89.5,
+    "lon": 0.0
+  },
+  "radius_km": 40.0,
+  "spacing_km": 3.33,
+  "train_cells": 423,
+  "held_out_cells": 106,
+  "feature_mean": [
+    -0.064191,
+    -0.140382,
+    -0.070442,
+    -0.014964,
+    0.047683,
+    0.097848,
+    0.059311,
+    0.002432,
+    -88.946671,
+    2.381853
+  ],
+  "feature_scale": [
+    0.435429,
+    0.627054,
+    0.47221,
+    0.576089,
+    0.432105,
+    0.639966,
+    0.474029,
+    0.590263,
+    0.451527,
+    79.632942
+  ],
+  "models": [
+    {
+      "id": "walk_safe",
+      "file": "walk_safe.keras",
+      "question": "Can a traveler cross this cell?",
+      "rule": "Center slope is 15\u00b0 or less.",
+      "held_out_accuracy": 0.915,
+      "train_positive_cells": 381,
+      "held_out_positive_rate": 0.925
+    },
+    {
+      "id": "pad_safe",
+      "file": "pad_safe.keras",
+      "question": "Can a habitat sit here without tipping?",
+      "rule": "Center slope is 5\u00b0 or less.",
+      "held_out_accuracy": 0.915,
+      "train_positive_cells": 161,
+      "held_out_positive_rate": 0.302
+    },
+    {
+      "id": "earth_clear",
+      "file": "earth_clear.keras",
+      "question": "Can the crew still see Earth?",
+      "rule": "The neighbor toward Earth does not rise above Earth.",
+      "held_out_accuracy": 0.698,
+      "train_positive_cells": 249,
+      "held_out_positive_rate": 0.557
+    },
+    {
+      "id": "sun_clear",
+      "file": "sun_clear.keras",
+      "question": "Does a low Sun still reach the ground?",
+      "rule": "A Sun 2\u00b0 up from azimuth 90\u00b0 clears the up-sun neighbor.",
+      "held_out_accuracy": 0.953,
+      "train_positive_cells": 261,
+      "held_out_positive_rate": 0.538
+    },
+    {
+      "id": "go_zone",
+      "file": "go_zone.keras",
+      "question": "Is this a go for the crew?",
+      "rule": "Walkable, Earth is clear, and the low Sun still reaches the cell.",
+      "held_out_accuracy": 0.868,
+      "train_positive_cells": 163,
+      "held_out_positive_rate": 0.34
+    }
+  ],
+  "note": "Each model sees the eight neighboring LOLA heights plus latitude and longitude. It does not see the center slope. Held-out accuracy is cells from this same crater that were left out of training. LDEM 16 is about 1.9 km per pixel, so a cell is not a footstep. These models do not detect water ice."
+}

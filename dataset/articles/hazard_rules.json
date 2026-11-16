@@ -1,0 +1,10 @@
+{
+    "safe": {
+        "status": "EXPERIMENTAL CLASS LABEL - NOT A CLEARANCE",
+        "description": "The image was assigned to the dataset's 'safe' label. The dataset and model are not validated for lunar traverse decisions; this is not a safety finding."
+    },
+    "not_safe": {
+        "status": "EXPERIMENTAL CLASS LABEL - REVIEW REQUIRED",
+        "description": "The image was assigned to the dataset's 'not_safe' label. This is not a validated hazard determination; review the image and independent terrain data."
+    }
+}

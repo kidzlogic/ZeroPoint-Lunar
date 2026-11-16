@@ -1,0 +1,28 @@
+{
+  "class_names": [
+    "not_safe",
+    "safe"
+  ],
+  "image_size": [
+    180,
+    180
+  ],
+  "training_data": "dataset\\train",
+  "validation": {
+    "accuracy": 0.7123287671232876,
+    "confusion_matrix": [
+      [
+        52,
+        0
+      ],
+      [
+        21,
+        0
+      ]
+    ],
+    "class_recall": {
+      "not_safe": 1.0,
+      "safe": 0.0
+    }
+  }
+}
